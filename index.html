@@ -1,0 +1,252 @@
+<!--
+  File: index.html
+  Purpose: Single-page shell for the MedCare Portal patient site (Home / Doctors / My Bookings / Feedback).
+  Logic: one HTML document with four "tab-content" sections; JS toggles which one is visible
+  (active-section vs hidden-section) instead of doing real page navigation/routing.
+  Implementation: css/style.css is compiled with Tailwind for deployment for things Tailwind utilities don't
+  cover (tab fade animation, star rating, toast, profile dropdown, mobile bottom nav). All dynamic behaviour (fetching
+  doctors/bookings, tab switching, booking, rating, feedback) lives in the js/*.js files loaded
+  at the end of the page.
+-->
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="clinic-api-url" content="" />
+    <title>MedCare Portal - Doctor Appointment Booking System</title>
+
+    <!-- أيقونة التاب (SVG جاهزة جوه الكود) - بتمنع طلب favicon.ico اللي بيرجع 404 على السيرفر -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A5%3C/text%3E%3C/svg%3E" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+    <!-- ملف الشكل الخاص بينا (أنيميشن، حالات إخفاء/إظهار التابات، شكل التقييم بالنجوم...) -->
+    <!-- Fixed: now points into css/ to match the new architecture folder layout -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col pb-16 md:pb-0">
+
+    <!-- ============================================== -->
+    <!-- Header / Navigation Bar -->
+    <!-- ============================================== -->
+    <header class="fixed top-0 w-full z-50 shadow-sm bg-surface-container-lowest h-16">
+        <div class="flex justify-between items-center max-w-[1200px] mx-auto px-4 md:px-10 h-full">
+            <div class="text-xl font-bold text-primary">MedCare Portal</div>
+
+            <nav class="hidden md:flex gap-6 items-center">
+                <!-- data-tab بيربط الزرار بالقسم اللي هيظهر - الـ JS بيقرأ الخاصية دي في js/main.js -->
+                <button class="nav-btn active text-primary border-b-2 border-primary pb-1 font-bold text-sm" data-tab="home">Home</button>
+                <button class="nav-btn text-on-surface-variant font-medium text-sm" data-tab="doctors">Doctors</button>
+                <button class="nav-btn text-on-surface-variant font-medium text-sm" data-tab="bookings">My Bookings</button>
+                <button class="nav-btn text-on-surface-variant font-medium text-sm" data-tab="feedback">Feedback</button>
+            </nav>
+
+            <div class="relative">
+                <button class="flex items-center gap-2" id="profileBtn">
+                    <img alt="Patient Profile" class="w-10 h-10 rounded-full object-cover border-2 border-surface-container-high"
+                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-l63gygDztuZm-ZmJwPzhBJn1SEgG-Kt7uPj5MicmPwKlsjNwdDznXCD5rAT0oWhweiQE_NH6ljtUm_TQ6-ElXOo-wU3r3d_1K_YbyFablsUE32y_3RQGhuG9QvVZDAVWKQehdYf4lTlNuhYN8GOt-DvDWmEwZOqIKkWQlrUtp_Oje_ZQXGmJoRUQ6FOc2JpA2O5SBXQDl38aoMZIjqUi4iYMNTRPBCxno65SVTVHoFJ83Zlx6pgIXQWvGgF6n3Gzd5ew3ToFIE-D" />
+                </button>
+                <div class="hidden-dropdown absolute right-0 mt-2 w-48 bg-surface-container-lowest rounded-xl shadow-ambient border border-outline-variant/20 py-2" id="profileDropdown">
+                    <div class="px-4 py-2 border-b border-outline-variant/20">
+                        <!-- ملحوظة: مفيش نظام تسجيل دخول لسه، فالاسم ده ثابت (Mock) بنستخدمه كـ PatientName في كل الطلبات -->
+                        <p class="text-sm font-semibold text-on-surface">John Doe</p>
+                        <p class="text-xs text-on-surface-variant">32 Years</p>
+                    </div>
+                    <button class="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low">Settings</button>
+                    <button class="w-full text-left px-4 py-2 text-sm text-error hover:bg-error-container/20">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================== -->
+    <!-- Main Content -->
+    <!-- ============================================== -->
+    <main class="flex-grow pt-24 pb-12 px-4 md:px-10 max-w-[1200px] w-full mx-auto">
+        <!-- ========== HOME SECTION ========== -->
+        <section class="tab-content active-section space-y-10" id="home">
+            <div class="text-center max-w-2xl mx-auto space-y-4">
+                <h1 class="text-3xl md:text-4xl font-bold text-on-surface">Find Your Trusted Doctor</h1>
+                <p class="text-lg text-on-surface-variant">
+                    Welcome to our clinic. We provide the easiest way to book your trusted doctors anytime, anywhere. Experience healthcare without the wait.
+                </p>
+            </div>
+
+            <form id="doctorSearch" class="max-w-2xl mx-auto" role="search">
+                <div class="relative">
+                    <input id="searchInput" aria-label="Search doctors or specialties" class="w-full pl-5 pr-28 py-4 rounded-full border border-outline-variant bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 shadow-sm"
+                           placeholder="Doctor or specialty" type="search" required />
+                    <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary">Search</button>
+                </div>
+            </form>
+
+            <div class="space-y-4">
+                <h2 class="text-xl font-bold text-on-surface px-2">Top Specialties</h2>
+                <!-- الكاتيجوريز ثابتة (مش جاية من الداتابيز) لأنها بس اختصار بصري لتخصصات معروفة مسبقاً -->
+                <div class="flex gap-4 overflow-x-auto pb-4">
+                    <button class="specialty-pill" data-specialty="Dentist">🦷 Dentist</button>
+                    <button class="specialty-pill" data-specialty="Orthopedics">🦴 Orthopedics</button>
+                    <button class="specialty-pill" data-specialty="Ophthalmology">👁️ Ophthalmology</button>
+                    <button class="specialty-pill" data-specialty="Neurology">🧠 Neurology</button>
+                    <button class="specialty-pill" data-specialty="Cardiology">❤️ Cardiology</button>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex justify-between items-end px-2">
+                    <h2 class="text-xl font-bold text-on-surface">Top Rated Doctors</h2>
+                    <button class="text-primary text-sm font-semibold hover:underline" data-tab="doctors">View All</button>
+                </div>
+                <!-- الكروت دي بتتولد ديناميكياً من الـ JS بعد ما يجيب البيانات من GET /api/doctors -->
+                <div id="topRatedDoctors" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <p class="text-on-surface-variant col-span-full text-center py-6">Loading doctors...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== DOCTORS SECTION ========== -->
+        <section class="tab-content hidden-section space-y-8" id="doctors">
+            <h1 class="text-3xl font-bold text-on-surface">Find a Doctor</h1>
+
+            <!-- الخطوة 1: اختيار التخصص -->
+            <div class="space-y-6" id="specialties-view">
+                <p class="text-lg text-on-surface-variant">Select a specialty to view available doctors.</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="specialtyGrid">
+                    <!-- بتتولد من نفس قائمة التخصصات الثابتة (SPECIALTIES) في js/doctors.js -->
+                </div>
+
+                <!-- نتائج البحث بتظهر هنا لو المريض استخدم شريط البحث في الهوم -->
+                <div id="searchResultsView" class="hidden-section space-y-4">
+                    <h2 class="text-lg font-bold text-on-surface">Search Results</h2>
+                    <div id="searchResultsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+                </div>
+            </div>
+
+            <!-- الخطوة 2: عرض دكاترة التخصص المختار -->
+            <div class="hidden-section space-y-6" id="doctors-grid-view">
+                <button class="flex items-center gap-2 text-primary text-sm font-semibold hover:underline" id="backToSpecialtiesBtn">
+                    <span class="material-symbols-outlined">arrow_back</span> Back to Specialties
+                </button>
+                <div id="doctorsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+            </div>
+        </section>
+
+        <!-- ========== MY BOOKINGS SECTION ========== -->
+        <section class="tab-content hidden-section space-y-6" id="bookings">
+            <h1 class="text-3xl font-bold text-on-surface">My Bookings</h1>
+            <div class="bg-surface-container-lowest rounded-2xl shadow-ambient p-6 md:p-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="material-symbols-outlined text-primary" style="font-size:32px;">calendar_month</span>
+                    <h2 class="text-lg font-bold text-on-surface">Your Appointments</h2>
+                </div>
+                <!-- بتتولد ديناميكياً من GET /api/bookings -->
+                <div id="bookingsList" class="space-y-4">
+                    <p class="text-on-surface-variant text-center py-6">Loading bookings...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== FEEDBACK SECTION ========== -->
+        <section class="tab-content hidden-section" id="feedback">
+            <div class="max-w-2xl mx-auto space-y-4">
+                <h1 class="text-3xl font-bold text-on-surface">Patient Feedback</h1>
+                <p class="text-lg text-on-surface-variant">We value your experience. Please share your thoughts to help us improve.</p>
+
+                <div class="bg-surface-container-lowest rounded-2xl shadow-ambient p-6 md:p-8">
+                    <form id="feedbackForm" class="space-y-5">
+                        <div>
+                            <label for="feedbackName" class="block text-sm font-semibold text-on-surface mb-2">Patient Name</label>
+                            <input id="feedbackName" class="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface-variant" type="text" value="John Doe" readonly />
+                        </div>
+                        <div>
+                            <label for="feedbackComplaint" class="block text-sm font-semibold text-on-surface mb-2">Complaint <span class="text-on-surface-variant font-normal">(Optional)</span></label>
+                            <textarea id="feedbackComplaint" class="w-full px-4 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20" rows="3" maxlength="2000" placeholder="Describe any issues you faced..."></textarea>
+                        </div>
+                        <div>
+                            <label for="feedbackSuggestion" class="block text-sm font-semibold text-on-surface mb-2">Suggestion</label>
+                            <textarea id="feedbackSuggestion" class="w-full px-4 py-3 rounded-lg border border-outline-variant focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20" rows="4" maxlength="2000" placeholder="How can we improve, or what did you love?" required></textarea>
+                        </div>
+                        <div class="flex gap-4 pt-4 border-t border-surface-variant">
+                            <button type="submit" class="flex-1 bg-primary text-on-primary py-3 px-6 rounded-lg font-bold hover:opacity-90 transition">Submit Feedback</button>
+                            <button type="reset" class="px-6 py-3 rounded-lg font-bold bg-surface-container-high text-on-surface border border-outline-variant hover:bg-surface-variant">Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ============================================== -->
+    <!-- Footer -->
+    <!-- ============================================== -->
+    <footer class="w-full py-8 bg-surface-container-low border-t border-outline-variant/30">
+        <div class="max-w-[1200px] mx-auto px-4 md:px-10 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-center md:text-left">
+                <div class="text-sm font-bold text-primary">MedCare Portal</div>
+                <p class="text-xs text-on-surface-variant">© 2026 MedCare Healthcare Systems. All rights reserved.</p>
+            </div>
+            <div class="flex flex-wrap gap-6 justify-center text-sm text-on-surface-variant">
+                <a class="hover:text-primary underline" href="#">Contact Us</a>
+                <a class="hover:text-primary underline" href="#">Privacy Policy</a>
+                <a class="hover:text-primary underline" href="#">Terms of Service</a>
+                <a class="hover:text-primary underline" href="#">Emergency Support</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================================== -->
+    <!-- Mobile Bottom Navigation: the header nav is hidden below the md breakpoint, so phones use this bar instead -->
+    <!-- شريط التنقل السفلي للموبايل: ناف بار الهيدر بيختفي في الشاشات الصغيرة، فده بديله (نفس data-tab ونفس الـ JS) -->
+    <!-- ============================================== -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 flex bg-surface-container-lowest border-t border-outline-variant/30" id="mobileNav" aria-label="Main navigation">
+        <button class="mobile-nav-btn active" data-tab="home"><span class="material-symbols-outlined">home</span>Home</button>
+        <button class="mobile-nav-btn" data-tab="doctors"><span class="material-symbols-outlined">medical_services</span>Doctors</button>
+        <button class="mobile-nav-btn" data-tab="bookings"><span class="material-symbols-outlined">calendar_month</span>My Bookings</button>
+        <button class="mobile-nav-btn" data-tab="feedback"><span class="material-symbols-outlined">rate_review</span>Feedback</button>
+    </nav>
+
+    <!-- ============================================== -->
+    <!-- Toast لعرض رسائل النجاح/الخطأ الجاية من الباك إند -->
+    <!-- ============================================== -->
+    <dialog id="ratingDialog" aria-labelledby="ratingTitle" class="rating-dialog rounded-2xl bg-surface-container-lowest p-6 text-on-surface shadow-xl">
+        <form id="ratingForm" class="space-y-5">
+            <div class="flex items-start gap-4">
+                <img id="ratingPortrait" alt="" width="56" height="56" class="h-14 w-14 rounded-xl object-cover" />
+                <div class="flex-1">
+                    <h2 id="ratingTitle" class="text-lg font-bold">Rate your visit</h2>
+                    <p id="ratingDoctor" class="text-sm text-on-surface-variant"></p>
+                </div>
+                <button id="closeRating" type="button" aria-label="Close rating" class="rounded-full px-3 py-2 text-on-surface-variant">✕</button>
+            </div>
+            <fieldset>
+                <legend class="mb-2 text-sm font-semibold">How was your experience?</legend>
+                <div class="star-rating flex flex-wrap gap-1">
+                    <label><input type="radio" name="score" value="1" required /><span aria-hidden="true">★</span><span class="sr-only">1 star</span></label>
+                    <label><input type="radio" name="score" value="2" /><span aria-hidden="true">★</span><span class="sr-only">2 stars</span></label>
+                    <label><input type="radio" name="score" value="3" /><span aria-hidden="true">★</span><span class="sr-only">3 stars</span></label>
+                    <label><input type="radio" name="score" value="4" /><span aria-hidden="true">★</span><span class="sr-only">4 stars</span></label>
+                    <label><input type="radio" name="score" value="5" /><span aria-hidden="true">★</span><span class="sr-only">5 stars</span></label>
+                </div>
+            </fieldset>
+            <p id="ratingError" role="status" hidden class="text-sm text-error"></p>
+            <button type="submit" class="w-full rounded-lg bg-primary py-3 font-semibold text-on-primary disabled:opacity-60">Submit rating</button>
+        </form>
+    </dialog>
+    <div id="toast" class="toast" role="status"></div>
+
+    <!-- ⭐ ملفات الجافاسكريبت متقسمة على فولدر js/ زي ما طلبت، وترتيب التحميل هنا مهم جداً:
+         api.js لازم يتحمل الأول (فيه apiRequest اللي كل الباقي بيستخدمه)
+         main.js لازم يتحمل الآخر (فيه أول استدعاء فعلي بيشغل الصفحة، ولازم كل الدوال التانية تكون معرّفة قبله) -->
+    <script src="js/api.js"></script>
+    <script src="js/ratings.js"></script>
+    <script src="js/doctors.js"></script>
+    <script src="js/bookings.js"></script>
+    <script src="js/feedback.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

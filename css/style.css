@@ -1,0 +1,224 @@
+/*
+  File: style.css
+  Purpose: Custom styles that Tailwind's utility classes don't cover for the MedCare Portal frontend.
+  Logic: Tailwind (loaded via CDN in index.html) handles almost all layout/color/spacing through
+  utility classes written directly in the HTML/JS. This file only holds the handful of things that
+  need real CSS: the tab show/hide + fade transition, the interactive star rating, specialty pills,
+  appointment slot buttons, the profile dropdown open/close animation, the mobile bottom navigation bar,
+  and the toast notification.
+  Implementation: Tailwind compiles this stylesheet for deployment.
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================
+   إعدادات عامة
+   ========================================== */
+body {
+    font-family: "Inter", sans-serif;
+}
+
+/* ==========================================
+   التحكم في إظهار/إخفاء التابات (Home / Doctors / Bookings / Feedback)
+   الـ JS بس بيبدل الكلاس ده على كل section، والـ CSS هنا هو اللي بيقرر شكل الإخفاء والظهور
+   ========================================== */
+.hidden-section {
+    display: none;
+}
+
+.active-section {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   أيقونات Material Symbols - لازم الإعداد ده عشان الأيقونات (زي search, close) تظهر "Outline" مش "Filled"
+   ========================================== */
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+    .material-symbols-outlined.filled {
+        font-variation-settings: "FILL" 1;
+    }
+
+.rating-dialog {
+    width: min(28rem, calc(100% - 2rem));
+}
+
+.rating-dialog::backdrop {
+    background: rgb(18 28 42 / 55%);
+}
+
+.star-rating label {
+    display: grid;
+    position: relative;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    cursor: pointer;
+    color: #737686;
+    font-size: 1.6rem;
+    border-radius: 0.5rem;
+}
+
+.star-rating input {
+    position: absolute;
+    opacity: 0;
+}
+
+.star-rating label:has(input:focus-visible) {
+    outline: 2px solid #004ac6;
+    outline-offset: 2px;
+}
+
+.star-rating label:has(input:checked),
+.star-rating label:has(~ label input:checked),
+.star-rating label:hover {
+    color: #a15900;
+    background: #fff4df;
+}
+
+/* ==========================================
+   أزرار التخصصات (Pills) في صفحة الهوم وصفحة Doctors
+   ========================================== */
+.specialty-pill {
+    flex-shrink: 0;
+    background: #ffffff;
+    border: 1px solid #c3c6d7;
+    border-radius: 9999px;
+    padding: 0.65rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #121c2a;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+    .specialty-pill:hover {
+        border-color: #004ac6;
+        background: #eff4ff;
+    }
+
+/* أزرار المواعيد المتاحة تحت كل دكتور */
+.slot-btn {
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    border: 1px solid #004ac6;
+    color: #004ac6;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+    .slot-btn:hover {
+        background: #004ac6;
+        color: #ffffff;
+    }
+
+    .slot-btn:disabled {
+        border-color: #c3c6d7;
+        color: #c3c6d7;
+        text-decoration: line-through;
+        cursor: not-allowed;
+    }
+
+/* ==========================================
+   قائمة البروفايل المنسدلة
+   ========================================== */
+#profileDropdown {
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    transform-origin: top right;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+}
+
+    #profileDropdown.hidden-dropdown {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+/* ==========================================
+   شريط التنقل السفلي للموبايل (Bottom Bar)
+   الإخفاء على الشاشات الكبيرة بكلاس md:hidden في الـ HTML، والـ JS بيضيف كلاس "active" على التاب المفتوح
+   ========================================== */
+.mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #434655;
+    transition: color 0.2s ease;
+}
+
+    .mobile-nav-btn.active {
+        color: #004ac6;
+    }
+
+/* ==========================================
+   الـ Toast (رسائل النجاح/الخطأ اللي طايرة تحت لما نكلم الـ API)
+   ========================================== */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    min-width: 260px;
+    max-width: 90vw;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffffff;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    z-index: 100;
+    text-align: center;
+}
+    /* لما الـ JS يضيف كلاس "show"، الـ Toast بيطلع لفوق ويظهر */
+    .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    /* أخضر للنجاح، أحمر للخطأ - الـ JS بيحدد الكلاس المناسب حسب رد السيرفر */
+    .toast.success {
+        background-color: #007d55;
+    }
+
+    .toast.error {
+        background-color: #ba1a1a;
+    }
+
+/* على الموبايل الـ Toast بيطلع فوق الـ Bottom Bar مش فوقه (الشريط ارتفاعه 64px) */
+@media (max-width: 767.98px) {
+    .toast {
+        bottom: 88px;
+    }
+}
