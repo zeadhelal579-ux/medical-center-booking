@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Firestore" Version="3.10.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- serviceAccountKey.json is excluded from Git/this delivery by design (see Config/README.txt).
+         When the developer places a real key locally, copy it to the local build output so
+         FirebaseInitializer (which resolves the path via AppContext.BaseDirectory) can find it at
+         runtime, but never copy it into the publish output, so a deployment artifact never
+         embeds the secret. The Exists() guard means a fresh clone with no key yet still builds. -->
+    <Content Remove="Config/serviceAccountKey.json" />
+    <Content Include="Config/serviceAccountKey.json" Condition="Exists('Config/serviceAccountKey.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
